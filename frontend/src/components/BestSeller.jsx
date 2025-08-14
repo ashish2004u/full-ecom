@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from "react";
 import Title from "./Title";
 import ProductCard from "./ProductCard";
-import { selectAllProducts } from "../redux/slice/productSlice";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { fetchProducts, selectAllProducts } from "../redux/slice/productSlice";
 
 const BestSeller = () => {
+  const dispatch = useDispatch();
   const products = useSelector(selectAllProducts);
   const [bestSeller, setBestSeller] = useState([]);
 
+  // Fetch products on mount
+  useEffect(() => {
+    dispatch(fetchProducts());
+  }, [dispatch]);
+
+  // Filter bestsellers
   useEffect(() => {
     const bestProduct = products.filter((item) => item.bestseller);
     setBestSeller(bestProduct.slice(0, 5));
   }, [products]);
+
   return (
     <div className="mx-6 my-10 mb-20">
       <div className="text-center ">
@@ -27,9 +35,9 @@ const BestSeller = () => {
         {bestSeller.map((item, index) => (
           <ProductCard
             key={index}
-            id={item.id}
+            id={item._id} // backend ID
             name={item.name}
-            image={item.images[0]}
+            images={item.images}
             price={item.price}
             sizes={item.sizes}
           />

@@ -1,7 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
-import { selectAllProducts } from "../redux/slice/productSlice";
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useParams } from "react-router-dom";
+import {
+  selectAllProducts,
+  fetchProductById,
+  selectSelectedProduct
+} from "../redux/slice/productSlice";
 import MainProductCard from "../components/MainProductCard";
 import slugify from "../utils/slugify";
 import Breadcrumb from "../components/BreadCrumb";
@@ -9,33 +13,32 @@ import Review from "../components/Review";
 import RelatedProduct from "../components/RelatedProduct";
 
 const ProductDetail = () => {
+  const dispatch = useDispatch();
   const products = useSelector(selectAllProducts);
-  const [searchParams] = useSearchParams();
+  const selectedProduct = useSelector(selectSelectedProduct);
 
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const productNameSlug = searchParams.get("name");
-
+  const { slug } = useParams();
 
   useEffect(() => {
-    // Scroll to top when product changes
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth", // optional: makes it smooth
-    });
-  }, [productNameSlug]); // Triggered whenever name changes
+    if (!slug) return;
 
-
-  useEffect(() => {
     const found = products.find(
-      (item) => slugify(item.name) === productNameSlug
+      (item) => slugify(item.name) === slug
     );
-    setSelectedProduct(found);
-  }, [productNameSlug, products]); // IMPORTANT: react to param changes
+
+    if (found) {
+      dispatch(fetchProductById(found._id));
+    }
+  }, [slug, products, dispatch]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [slug]);
 
   if (!selectedProduct) {
     return (
       <div className="text-center text-red-500 font-semibold py-10">
-        Product not found!
+        Loading product...
       </div>
     );
   }
@@ -47,8 +50,8 @@ const ProductDetail = () => {
       </div>
 
       <MainProductCard
-        key={selectedProduct.id} // ✅ force full re-render of component
-        id={selectedProduct.id}
+        key={selectedProduct._id}
+        id={selectedProduct._id}
         name={selectedProduct.name}
         desc={selectedProduct.desc}
         images={selectedProduct.images}
@@ -56,7 +59,7 @@ const ProductDetail = () => {
         sizes={selectedProduct.sizes}
       />
 
-      <Review />
+      <Review productId={selectedProduct._id} />
       <RelatedProduct currentProduct={selectedProduct} />
     </>
   );

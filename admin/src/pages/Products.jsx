@@ -1,19 +1,22 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { FaPlus, FaSearch } from "react-icons/fa";
-import ListProduct from "../components/ListProduct"; // Adjust path if needed
+import ListProduct from "../components/ListProduct";
 import { useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { selectAllProducts } from "../redux/slice/productSlice";
+import { useSelector, useDispatch } from "react-redux";
+import { selectAllProducts, fetchProducts } from "../redux/slice/productSlice";
 
 const Products = () => {
   const navigate = useNavigate();
-  const products = useSelector(selectAllProducts); // Get products from Redux
+  const dispatch = useDispatch();
+  const products = useSelector(selectAllProducts);
+
+  useEffect(() => {
+    dispatch(fetchProducts());
+  }, [dispatch]);
 
   return (
     <div className="p-6">
-      {/* Top Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        {/* Search */}
         <div className="relative w-full sm:w-1/2">
           <input
             type="text"
@@ -23,7 +26,6 @@ const Products = () => {
           <FaSearch className="absolute top-3 left-3 text-gray-400" />
         </div>
 
-        {/* Add Product Button */}
         <button
           onClick={() => navigate("/add-product")}
           className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
@@ -32,7 +34,7 @@ const Products = () => {
         </button>
       </div>
 
-      {/* Product List */}
+      {/* Pass Redux products to ListProduct */}
       <ListProduct products={products} />
     </div>
   );

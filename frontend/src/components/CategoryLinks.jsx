@@ -1,26 +1,32 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { selectAllCategory } from "../redux/slice/categorySlice";
+import { useSelector, useDispatch } from "react-redux";
+import { selectAllCategory, fetchCategories } from "../redux/slice/categorySlice";
 import slugify from "../utils/slugify";
 
 const CategoryLinks = ({ onClick = () => {} }) => {
+  const dispatch = useDispatch();
   const category = useSelector(selectAllCategory);
 
-  // const uniqueCategories = [...new Set(products.map((item) => item.category))];
+  // Fetch categories on mount
+  useEffect(() => {
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
   return (
     <>
-      <li>  
-        <NavLink to="/">Home</NavLink>
+      <li>
+        <NavLink to="/" onClick={onClick}>Home</NavLink>
       </li>
-      {category.map((category, index) => (
+
+      {category.map((cat, index) => (
         <li key={index} onClick={onClick}>
-          <NavLink to={`/products?category=${slugify(category.name)}`}>
-            {category.name}
+          <NavLink to={`/products?category=${slugify(cat.name)}`}>
+            {cat.name}
           </NavLink>
         </li>
       ))}
+
       <li onClick={onClick}>
         <NavLink to="/about">About</NavLink>
       </li>

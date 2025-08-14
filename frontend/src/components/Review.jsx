@@ -1,69 +1,102 @@
 import React, { useEffect, useState } from "react";
 import { FaStar } from "react-icons/fa";
+import { useDispatch, useSelector } from "react-redux";
+import toast, { Toaster } from "react-hot-toast";
+import {
+  fetchReviews,
+  addReview as addReviewAction,
+  updateReview as updateReviewAction,
+  deleteReview as deleteReviewAction,
+  selectReviewsByProduct,
+} from "../redux/slice/reviewSlice";
 
-const Review = () => {
+const Review = ({ productId }) => {
+  const dispatch = useDispatch();
+  const reviews = useSelector((state) =>
+    selectReviewsByProduct(state, productId)
+  );
+  const user = useSelector((state) => state.auth.user);
+
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
-  const [reviews, setReviews] = useState([]);
-  const [visibleCount, setVisibleCount] = useState(5);
-  const [editingIndex, setEditingIndex] = useState(null); // for editing mode
+  const [editingReviewId, setEditingReviewId] = useState(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("reviews");
-    if (saved) {
-      setReviews(JSON.parse(saved));
-    }
-  }, []);
+    dispatch(fetchReviews(productId)).unwrap().catch((err) => toast.error(err));
+  }, [dispatch, productId]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const newReview = {
-      user: "John Doe",
-      rating,
-      comment,
-    };
 
-    let updatedReviews;
-
-    if (editingIndex !== null) {
-      // Editing existing review
-      updatedReviews = [...reviews];
-      updatedReviews[editingIndex] = newReview;
-      setEditingIndex(null);
-    } else {
-      // New review
-      updatedReviews = [newReview, ...reviews];
+    if (!user) {
+      toast.error("Please login to submit a review!");
+      return;
     }
 
-    setReviews(updatedReviews);
-    localStorage.setItem("reviews", JSON.stringify(updatedReviews));
+    const userNameOrEmail = user.name || user.email || "Anonymous";
 
-    setRating(0);
-    setComment("");
+    try {
+      if (editingReviewId) {
+        await dispatch(
+          updateReviewAction({
+            productId,
+            reviewId: editingReviewId,
+            name: userNameOrEmail,
+            rating,
+            comment,
+          })
+        ).unwrap();
+        toast.success("Review updated successfully");
+        setEditingReviewId(null);
+      } else {
+        await dispatch(
+          addReviewAction({
+            productId,
+            name: userNameOrEmail,
+            rating,
+            comment,
+          })
+        ).unwrap();
+        toast.success("Review added successfully");
+      }
+      setRating(0);
+      setComment("");
+    } catch (err) {
+      toast.error(err || "Something went wrong");
+    }
   };
 
-  const handleDelete = (index) => {
-    const updated = reviews.filter((_, i) => i !== index);
-    setReviews(updated);
-    localStorage.setItem("reviews", JSON.stringify(updated));
-  };
-
-  const handleEdit = (index) => {
-    const review = reviews[index];
+  const handleEdit = (review) => {
+    if (!user) {
+      toast.error("Please login to edit your review!");
+      return;
+    }
     setComment(review.comment);
     setRating(review.rating);
-    setEditingIndex(index);
+    setEditingReviewId(review._id);
+  };
+
+  const handleDelete = async (reviewId) => {
+    if (!user) {
+      toast.error("Please login to delete your review!");
+      return;
+    }
+    try {
+      await dispatch(deleteReviewAction({ productId, reviewId })).unwrap();
+      toast.success("Review deleted successfully");
+    } catch (err) {
+      toast.error(err || "Error deleting review");
+    }
   };
 
   return (
     <div className="w-full bg-white px-4 py-6 md:px-10 mx-auto">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">
-        {editingIndex !== null ? "Edit Review" : "Write a Review"}
-      </h2>
+      <Toaster position="top-right" reverseOrder={false} />
+      <h2 className="text-2xl font-bold mb-4 text-gray-800">Write a Review</h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Star Rating */}
+        {/* Rating */}
         <div>
           <label className="text-sm font-medium text-gray-700">Your Rating</label>
           <div className="flex space-x-1 mt-1">
@@ -94,7 +127,7 @@ const Review = () => {
           </div>
         </div>
 
-        {/* Comment Box */}
+        {/* Comment */}
         <div>
           <label className="text-sm font-medium text-gray-700">Your Comment</label>
           <textarea
@@ -111,68 +144,60 @@ const Review = () => {
           type="submit"
           className="bg-black text-white py-2 px-6 rounded hover:bg-gray-800"
         >
-          {editingIndex !== null ? "Update Review" : "Submit Review"}
+          {editingReviewId ? "Update Review" : "Submit Review"}
         </button>
       </form>
 
-      {/* Display Reviews */}
+      {/* Reviews List */}
       <div className="mt-10">
-        <h3 className="text-xl font-semibold mb-4 text-gray-800">Customer Reviews</h3>
+        <h3 className="text-xl font-semibold mb-4 text-gray-800">
+          Customer Reviews
+        </h3>
         {reviews.length === 0 ? (
           <p className="text-gray-500">No reviews yet.</p>
         ) : (
-          <>
-            <ul className="space-y-4">
-              {reviews.slice(0, visibleCount).map((rev, index) => (
-                <li
-                  key={index}
-                  className="border border-gray-200 p-4 rounded-md shadow-sm"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <FaStar
-                          key={i}
-                          size={20}
-                          className={i < rev.rating ? "text-yellow-500" : "text-gray-300"}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-sm text-gray-600 font-medium">
-                      {rev.user}
-                    </span>
+          <ul className="space-y-4">
+            {reviews.map((rev) => (
+              <li
+                key={rev._id}
+                className="border border-gray-200 p-4 rounded-md shadow-sm"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center">
+                    {[...Array(5)].map((_, i) => (
+                      <FaStar
+                        key={i}
+                        size={20}
+                        className={
+                          i < rev.rating ? "text-yellow-500" : "text-gray-300"
+                        }
+                      />
+                    ))}
                   </div>
-                  <p className="text-gray-700">{rev.comment}</p>
+                  <span className="text-sm text-gray-600 font-medium">
+                    {rev.name}
+                  </span>
+                </div>
+                <p className="text-gray-700">{rev.comment}</p>
+                {user && (
                   <div className="flex gap-4 mt-2">
                     <button
-                      onClick={() => handleEdit(index)}
+                      onClick={() => handleEdit(rev)}
                       className="text-sm text-blue-600 hover:underline"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(index)}
+                      onClick={() => handleDelete(rev._id)}
                       className="text-sm text-red-600 hover:underline"
                     >
                       Delete
                     </button>
                   </div>
-                </li>
-              ))}
-            </ul>
-
-            {/* Load More Button */}
-            {visibleCount < reviews.length && (
-              <div className="text-center mt-6">
-                <button
-                  onClick={() => setVisibleCount((prev) => prev + 5)}
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  Load More Reviews
-                </button>
-              </div>
-            )}
-          </>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>

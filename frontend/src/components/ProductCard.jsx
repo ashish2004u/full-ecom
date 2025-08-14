@@ -6,15 +6,16 @@ import { useDispatch, useSelector } from "react-redux";
 import { addToCart } from "../redux/slice/cartSlice";
 import toast from "react-hot-toast";
 
-const ProductCard = ({ id, name, price, image, sizes = [] }) => {
+const ProductCard = ({ id, name, price, images = [], sizes = [] }) => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
-  console.log("User from redux:", user);
 
   const [showIcons, setShowIcons] = useState(false);
   const [showZoom, setShowZoom] = useState(false);
   const [showSizeModal, setShowSizeModal] = useState(false);
   const [selectedSize, setSelectedSize] = useState(null);
+
+  const image = images?.length ? images[0] : "/placeholder.jpg";
 
   const handleAddToCart = () => {
     if (!user) {
@@ -49,6 +50,9 @@ const ProductCard = ({ id, name, price, image, sizes = [] }) => {
     toast.success(`Size selected: ${size}`);
   };
 
+  // Create SEO-friendly slug with ID hidden in query param
+  const productSlug = `/main-product/${slugify(name)}?pid=${id}`;
+
   return (
     <>
       <div
@@ -56,8 +60,9 @@ const ProductCard = ({ id, name, price, image, sizes = [] }) => {
         onMouseEnter={() => setShowIcons(true)}
         onMouseLeave={() => setShowIcons(false)}
       >
+        {/* Product Image */}
         <div className="relative w-full h-80 overflow-hidden rounded-t-lg">
-          <Link to={`/main-product?name=${slugify(name)}`}>
+          <Link to={productSlug}>
             <img
               src={image}
               alt={name}
@@ -65,6 +70,7 @@ const ProductCard = ({ id, name, price, image, sizes = [] }) => {
             />
           </Link>
 
+          {/* Hover Icons */}
           {showIcons && (
             <div className="absolute top-3 right-3 flex flex-col gap-3 animate-slide-in-right">
               <button
@@ -83,8 +89,9 @@ const ProductCard = ({ id, name, price, image, sizes = [] }) => {
           )}
         </div>
 
+        {/* Product Info */}
         <div className="p-5">
-          <Link to={`/main-product?name=${slugify(name)}`}>
+          <Link to={productSlug}>
             <p className="text-xl font-semibold">{name}</p>
           </Link>
 
@@ -104,6 +111,7 @@ const ProductCard = ({ id, name, price, image, sizes = [] }) => {
         </div>
       </div>
 
+      {/* Zoom Modal */}
       {showZoom && (
         <div
           className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center z-50"
@@ -116,6 +124,7 @@ const ProductCard = ({ id, name, price, image, sizes = [] }) => {
         </div>
       )}
 
+      {/* Size Selection Modal */}
       {showSizeModal && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-lg">

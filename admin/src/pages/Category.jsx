@@ -1,21 +1,32 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { FaPlus, FaSearch } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { selectAllCategory } from "../redux/slice/categorySlice"; // ✅ your selector
-import CategoryList from "../components/ListCategory"; // ✅ path update as per your structure
+import { useSelector, useDispatch } from "react-redux";
+import {
+  fetchCategories,
+  selectAllCategory,
+  selectCategoryLoading,
+  selectCategoryError,
+} from "../redux/slice/categorySlice";
+import CategoryList from "../components/ListCategory";
 
 const CategoryPage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  // Get all categories from Redux store
   const categories = useSelector(selectAllCategory);
+  const loading = useSelector(selectCategoryLoading);
+  const error = useSelector(selectCategoryError);
+
+  useEffect(() => {
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
   return (
     <div className="p-6">
       {/* Top Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        {/* Search */}
+        {/* Search Input (add logic later) */}
         <div className="relative w-full sm:w-1/2">
           <input
             type="text"
@@ -34,8 +45,10 @@ const CategoryPage = () => {
         </button>
       </div>
 
-      {/* Category List */}
-      <CategoryList categories={categories} />
+      {/* Status & Category List */}
+      {loading && <p>Loading categories...</p>}
+      {error && <p className="text-red-600">Error: {error}</p>}
+      {!loading && !error && <CategoryList categories={categories} />}
     </div>
   );
 };

@@ -4,6 +4,7 @@ import categoryReducer from "./slice/categorySlice";
 import subCategoryReducer from './slice/subCategorySlice'
 import reviewReducer from './slice/reviewSlice'
 import cartSlice from './slice/cartSlice'
+import adminUserReducer  from './slice/adminUserSlice'
 const store = configureStore({
   reducer: {
     product: productReducer,
@@ -11,7 +12,7 @@ const store = configureStore({
     subCategory:subCategoryReducer,
     review: reviewReducer,
     cart:cartSlice,
-    
+    adminUsers: adminUserReducer,
 
 
   },

@@ -1,15 +1,18 @@
-import React from "react";
-import { useSelector } from "react-redux";
-import { selectAllCategory } from "../redux/slice/categorySlice";
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { selectAllCategory, fetchCategories } from "../redux/slice/categorySlice";
 import Title from "./Title";
 import { Link } from "react-router-dom";
 import slugify from "../utils/slugify";
 
 const CategoriesShow = () => {
+  const dispatch = useDispatch();
   const category = useSelector(selectAllCategory);
 
- 
- 
+  // Fetch categories on mount
+  useEffect(() => {
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
   return (
     <div className="py-8 my-8">
@@ -21,7 +24,7 @@ const CategoriesShow = () => {
         </p>
       </div>
 
-      <ul className="flex justify-center gap-4 overflow-x-scroll  overflow-y-hidden scrollbar-hide">
+      <ul className="flex justify-center gap-4 overflow-x-scroll overflow-y-hidden scrollbar-hide">
         {category.map((item, index) => (
           <li key={index} className="min-w-[100px] text-center">
             <Link to={`/products?category=${slugify(item.name)}`}>

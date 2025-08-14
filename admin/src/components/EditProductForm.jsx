@@ -1,308 +1,358 @@
-import React, { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
-import { selectAllCategory } from "../redux/slice/categorySlice";
-import { selectAllSubCategory } from "../redux/slice/subCategorySlice";
+import React, { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { backendUrl } from "../App";
 
-const EditProductForm = ({ product }) => {
-  const categories = useSelector(selectAllCategory);
-  const subCategories = useSelector(selectAllSubCategory);
+const EditProductForm = ({ initialData, onSubmit, loading }) => {
+  const sizeDropdownRef = useRef(null);
 
-  const [form, setForm] = useState({
+  const [productData, setProductData] = useState({
     name: "",
+    desc: "",
     price: "",
-    mrp: "",
-    discount: "",
     category: "",
     subcategory: "",
     bestseller: "No",
-    sizes: [],
     sku: "",
-    
     inventory: "",
-    description: "",
-    images: [],
   });
 
-  const [filteredSubCategories, setFilteredSubCategories] = useState([]);
-  const [previews, setPreviews] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
+  const [selectedSizes, setSelectedSizes] = useState([]);
+  const [images, setImages] = useState([]); // New images to upload
+  const [oldImages, setOldImages] = useState([]); // Existing images
+  const [previews, setPreviews] = useState([]); // Previews for new images
+  const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
 
+  const sizes = [
+    "24", "26", "28", "30", "32", "34", "36", "38", "40", "42", "44", "46", "48",
+    "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "Free Size", "All Size",
+  ];
+
+  // Fetch categories on mount
   useEffect(() => {
-    if (product) {
-      const {
-        name,
-        price,
-        mrp,
-        discount,
-        category,
-        subcategory,
-        bestseller,
-        sizes,
-        sku,
-       
-        inventory,
-        desc,
-        images,
-        image,
-      } = product;
-
-      setForm({
-        name: name || "",
-        price: price || "",
-        mrp: mrp || "",
-        discount: discount || "",
-        category: category || "",
-        subcategory: subcategory || "",
-        bestseller: bestseller || "No",
-        sizes: sizes || [],
-        sku: sku || "",
-        inventory: inventory || "",
-        description: desc || "",
-        images: [], // new uploaded files
-      });
-
-      setPreviews(images?.length ? images : image ? [image] : []);
-
-      // Filter subcategories based on existing category
-      if (category) {
-        const subs = subCategories.filter((sc) => sc.categoryId === category);
-        setFilteredSubCategories(subs);
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(`${backendUrl}/api/category/all-category`);
+        const data = await res.json();
+        setCategories(data);
+      } catch {
+        toast.error("Error fetching categories");
       }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch subcategories on category change
+  useEffect(() => {
+    if (!productData.category) {
+      setSubcategories([]);
+      setProductData(prev => ({ ...prev, subcategory: "" }));
+      return;
     }
-  }, [product, subCategories]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+    const fetchSubcategories = async () => {
+      try {
+        const res = await fetch(`${backendUrl}/api/subcategory/all-subcategories?categoryId=${productData.category}`);
+        const data = await res.json();
+        setSubcategories(data.subCategories || []);
+      } catch {
+        toast.error("Error fetching subcategories");
+      }
+    };
+    fetchSubcategories();
+  }, [productData.category]);
 
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    if (name === "category") {
-      const relatedSubs = subCategories.filter((sub) => sub.categoryId === value);
-      setFilteredSubCategories(relatedSubs);
-
-      setForm((prev) => ({
-        ...prev,
-        category: value,
-        subcategory: relatedSubs[0]?.id || "",
-      }));
+  // Prefill form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      setProductData({
+        name: initialData.name || "",
+        desc: initialData.desc || "",
+        price: initialData.price || "",
+        category: initialData.category?._id || "",
+        subcategory: initialData.subcategory?._id || "",
+        bestseller: initialData.bestseller ? "Yes" : "No",
+        sku: initialData.sku || "",
+        inventory: initialData.inventory || "",
+      });
+      setSelectedSizes(initialData.sizes || []);
+      setOldImages(initialData.images || []);
+      setPreviews([]);
+      setImages([]);
     }
+  }, [initialData]);
+
+  // Close size dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sizeDropdownRef.current && !sizeDropdownRef.current.contains(event.target)) {
+        setSizeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleInputChange = (e) => {
+    setProductData({ ...productData, [e.target.name]: e.target.value });
+  };
+
+  const handleSizeToggle = (size) => {
+    setSelectedSizes(prev =>
+      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+    );
   };
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
-    if (files.length < 2 || files.length > 6) {
-      alert("Please select between 2 and 6 images.");
+
+    if (files.length > 5) {
+      toast.error("You can upload up to 5 images only.");
       return;
     }
 
-    setForm((prev) => ({
-      ...prev,
-      images: files,
-    }));
-
-    const readers = files.map((file) => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    });
-
-    Promise.all(readers).then((results) => setPreviews(results));
+    setImages(files);
+    setPreviews(files.map(file => URL.createObjectURL(file)));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (form.images.length < 2 || form.images.length > 6) {
-      alert("Product must have between 2 and 6 images.");
+    if (loading) return;
+
+    if (selectedSizes.length === 0) {
+      toast.error("Please select at least one size.");
       return;
     }
 
-    console.log("Updated Product Data: ", form);
-    // TODO: Send to backend
+    // Validate required fields
+    if (!productData.name.trim()) {
+      toast.error("Product name is required.");
+      return;
+    }
+    if (!productData.price || productData.price <= 0) {
+      toast.error("Please enter a valid price.");
+      return;
+    }
+    if (!productData.category) {
+      toast.error("Please select a category.");
+      return;
+    }
+    if (!productData.subcategory) {
+      toast.error("Please select a subcategory.");
+      return;
+    }
+    if (productData.inventory === "" || productData.inventory < 0) {
+      toast.error("Please enter valid inventory.");
+      return;
+    }
+
+    const dataToSubmit = {
+      ...productData,
+      bestseller: productData.bestseller === "Yes",
+      sizes: selectedSizes,
+      oldImages,
+      images,
+    };
+
+    if (onSubmit) onSubmit(dataToSubmit);
   };
 
   return (
-    <div className="p-8">
+    <form className="p-8" onSubmit={handleSubmit} encType="multipart/form-data">
       <h2 className="text-2xl font-semibold mb-6">Edit Product</h2>
-      <form
-        onSubmit={handleSubmit}
-        className="grid grid-cols-1 md:grid-cols-2 gap-6"
-      >
-        <div>
-          <label className="block font-medium">Product Name</label>
-          <input
-            type="text"
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Name */}
+        <input
+          type="text"
+          name="name"
+          value={productData.name}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+          placeholder="Product Name"
+          required
+        />
+
+        {/* Price */}
+        <input
+          type="number"
+          name="price"
+          value={productData.price}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+          placeholder="Selling Price"
+          min="0"
+          step="0.01"
+          required
+        />
+
+        {/* Category */}
+        <select
+          name="category"
+          value={productData.category}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+          required
+        >
+          <option value="">-- Select Category --</option>
+          {categories.map(cat => (
+            <option key={cat._id} value={cat._id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Subcategory */}
+        <select
+          name="subcategory"
+          value={productData.subcategory}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+          required
+          disabled={!productData.category}
+        >
+          <option value="">-- Select Subcategory --</option>
+          {subcategories.map(sub => (
+            <option key={sub._id} value={sub._id}>
+              {sub.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Bestseller */}
+        <select
+          name="bestseller"
+          value={productData.bestseller}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+        >
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+
+        {/* Sizes Dropdown */}
+        <div className="relative" ref={sizeDropdownRef}>
+          <label className="block font-medium mb-2">Available Sizes</label>
+          <div
+            className="border rounded px-3 py-2 bg-white cursor-pointer"
+            onClick={() => setSizeDropdownOpen(!sizeDropdownOpen)}
+          >
+            {selectedSizes.length > 0 ? selectedSizes.join(", ") : "Select sizes"}
+          </div>
+          {sizeDropdownOpen && (
+            <div className="absolute z-10 mt-1 w-full border bg-white shadow rounded max-h-60 overflow-y-auto">
+              {sizes.map(size => (
+                <label
+                  key={size}
+                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-purple-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedSizes.includes(size)}
+                    onChange={() => handleSizeToggle(size)}
+                  />
+                  {size}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div>
-          <label className="block font-medium">Product Images (2-6)</label>
+        {/* SKU */}
+        <input
+          type="text"
+          name="sku"
+          value={productData.sku}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+          placeholder="SKU"
+        />
+
+        {/* Inventory */}
+        <input
+          type="number"
+          name="inventory"
+          value={productData.inventory}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+          placeholder="Inventory"
+          min="0"
+          required
+        />
+
+        {/* Description */}
+        <textarea
+          name="desc"
+          value={productData.desc}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded md:col-span-2"
+          rows={4}
+          placeholder="Product Description"
+        />
+
+        {/* Images Section */}
+        <div className="md:col-span-2">
+          <label className="block font-medium">Replace Product Images (optional)</label>
           <input
             type="file"
-            onChange={handleImageChange}
             accept="image/*"
             multiple
-            className="mt-1"
+            onChange={handleImageChange}
+            className="mt-2"
           />
-          <div className="flex flex-wrap gap-3 mt-2">
-            {previews.map((src, idx) => (
-              <img
-                key={idx}
-                src={src}
-                alt={`Preview ${idx + 1}`}
-                className="w-24 h-24 object-cover rounded border"
-              />
-            ))}
-          </div>
-        </div>
 
-        <div>
-          <label className="block font-medium">Selling Price</label>
-          <input
-            type="number"
-            name="price"
-            value={form.price}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          />
-        </div>
+          {/* Old Images with Remove Button */}
+          {oldImages.length > 0 && (
+            <div className="flex gap-3 mt-3 flex-wrap">
+              {oldImages.map((img, idx) => (
+                <div key={idx} className="relative">
+                  <img
+                    src={
+                      img.startsWith("http")
+                        ? img
+                        : `${backendUrl.replace(/\/$/, "")}/${img.replace(/^\/+/, "")}`
+                    }
+                    alt="Old Product"
+                    className="w-24 h-24 object-cover rounded border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setOldImages(prev => prev.filter((_, i) => i !== idx))}
+                    className="absolute top-0 right-0 bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                    title="Remove Image"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
-        <div>
-          <label className="block font-medium">MRP</label>
-          <input
-            type="number"
-            name="mrp"
-            value={form.mrp}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          />
+          {/* New Image Previews */}
+          {previews.length > 0 && (
+            <div className="flex gap-3 mt-3 flex-wrap">
+              {previews.map((src, idx) => (
+                <img
+                  key={idx}
+                  src={src}
+                  alt={`Preview ${idx + 1}`}
+                  className="w-24 h-24 object-cover rounded border"
+                />
+              ))}
+            </div>
+          )}
         </div>
+      </div>
 
-        <div>
-          <label className="block font-medium">Discount (%)</label>
-          <input
-            type="number"
-            name="discount"
-            value={form.discount}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium">Category</label>
-          <select
-            name="category"
-            value={form.category}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          >
-            <option value="">Select Category</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-medium">Subcategory</label>
-          <select
-            name="subcategory"
-            value={form.subcategory}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          >
-            <option value="">Select Subcategory</option>
-            {filteredSubCategories.map((subCat) => (
-              <option key={subCat.id} value={subCat.id}>
-                {subCat.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-medium">Bestseller</label>
-          <select
-            name="bestseller"
-            value={form.bestseller}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          >
-            <option>Yes</option>
-            <option>No</option>
-          </select>
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block font-medium">Available Sizes</label>
-          <div className="flex gap-4 mt-2 flex-wrap">
-            {form.sizes.map((size, i) => (
-              <span
-                key={i}
-                className="px-3 py-1 bg-gray-100 border rounded text-sm"
-              >
-                {size}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block font-medium">SKU</label>
-          <input
-            type="text"
-            name="sku"
-            value={form.sku}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          />
-        </div>
-
-        
-
-        <div>
-          <label className="block font-medium">Quantity</label>
-          <input
-            type="number"
-            name="inventory"
-            value={form.inventory}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block font-medium">Description</label>
-          <textarea
-            name="description"
-            value={form.description}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-            rows={4}
-          ></textarea>
-        </div>
-
-        <div className="md:col-span-2">
-          <button
-            type="submit"
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Update Product
-          </button>
-        </div>
-      </form>
-    </div>
+      <button
+        type="submit"
+        disabled={loading}
+        className="mt-8 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+      >
+        {loading ? "Saving..." : "Update Product"}
+      </button>
+    </form>
   );
 };
 

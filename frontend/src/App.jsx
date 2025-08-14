@@ -15,6 +15,10 @@ import Loader from './components/Loader'
 // Hot Toast
 import { Toaster } from 'react-hot-toast'
 
+
+export const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+
 const App = () => {
   const [loading, setLoading] = useState(true)
 
@@ -28,6 +32,8 @@ const App = () => {
   if (loading) {
     return <Loader />
   }
+
+  
 
   return (
     <>
@@ -51,7 +57,7 @@ const App = () => {
         <Route path='/products' element={<Products />} />
         <Route path='/cart' element={<CartPage />} />
         <Route path='/place-order' element={<PlaceOrder />} />
-        <Route path='/main-product' element={<ProductDetail />} />
+        <Route path='/main-product/:slug' element={<ProductDetail />} />
         <Route path='/login' element={<Login />} />
         <Route path='/account' element={<AccountPage />} />
       </Routes>

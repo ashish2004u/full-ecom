@@ -30,11 +30,17 @@ const Sidebar = () => {
         <Link to="/categories" className="flex items-center gap-3 hover:text-purple-400">
           <FaThList /> Categories
         </Link>
+         <Link to="/subcategories" className="flex items-center gap-3 hover:text-purple-400">
+          <FaThList /> subcategories
+        </Link>
         <Link to="/newsletter" className="flex items-center gap-3 hover:text-purple-400">
           <FaEnvelope /> Newsletter
         </Link>
          <Link to="/review" className="flex items-center gap-3 hover:text-purple-400">
           <FaEnvelope /> Review
+        </Link>
+         <Link to="/admin-user" className="flex items-center gap-3 hover:text-purple-400">
+          <FaEnvelope /> User
         </Link>
 
         {/* Orders Section
